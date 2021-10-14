@@ -16,7 +16,7 @@ This streaming UDX reads lines from files in a specified directory, and then exi
 
 This streaming UDX reads the input stream and emits ROWTIME and LINE where LINE is the concatenation of the columns mentioned in the WHICH parameter.
 
-It relies on Python's `logging` and uses the `TimedRotatingFileHandler`.
+It relies on Python's `logging` module and uses `WholeIntervalRotatingFileHandler` which is a derivative of the `TimedRotatingFileHandler` borrowed from [Stack Overflow](https://stackoverflow.com/questions/53047922/python-handlers-timedrotatingfilehandler-rotation-does-not-work-as-i-expected). This lines up the file rotations, rounding to the nearest interval multiple.
 
 
 ### Parameters
@@ -31,15 +31,19 @@ You can specify rotation periods like so:
 * 2H = 2 hours
 * 3d = 3 days
 * 30m = 30 minutes
-* W0 = every Sunday (W1 = Monday, W6 = Saturday)
+* W0 = every Monday (W1 = Tuesday, ..., W6 = Sunday)
 * midnight - rotate each midnight (UTC)
 
 To run this in an application, pump the output into a native stream where it will be discarded; the file write happens as a side effect.
 
 **NOTES:**
-* 'midnight' rotates at midnight; '1d' rotates 24 hours after the start, and every 24 hours after that.
-* '5m' will rotate 5 minutes after start time, not at :00, :05, etc
-* See 
+* 'midnight' rotates daily at midnight; 
+* '1d' also rotates every day at midnight
+* '12h' will rotate at noon and midnight; '6h' would also rotate at 6:00 and 18:00.
+* '3d' rotates every third day at midnight. The first rotation will be the next day divisible by 3 according to the day of the month
+* '5m' will rotate at hh:00, hh:05, etc
+* '20s' will rotate at hh:mm:00, hh:mm:20, hh:mm:40 and so on
+
 
 
 ### Note on Output Formatting

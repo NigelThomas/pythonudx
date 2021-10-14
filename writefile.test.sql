@@ -16,7 +16,7 @@ select stream * from stream(
     test.writefile
         (cursor (select stream line from serverstats)
         ,row(line),'/home/sqlstream/streamstats.log'
-        ,'5m'
+        ,'3d'
         ,20
         ));
 

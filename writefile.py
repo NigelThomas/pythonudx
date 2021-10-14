@@ -14,6 +14,13 @@ import re
 from pyUdx import Connection
 import sys
 
+class WholeIntervalRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
+    def computeRollover(self, currentTime):
+        if self.when[0] == 'W' or self.when == 'MIDNIGHT':
+            # use existing computation
+            return super().computeRollover(currentTime)
+        # round time up to nearest next multiple of the interval
+        return ((currentTime // self.interval) + 1) * self.interval
 
 connection=Connection()
 out = connection.getOutput()
@@ -29,61 +36,24 @@ rotation_period = connection.getParameter("ROTATION_PERIOD").upper()
 # separate out the 'when' (which time period) and the 'interval' (how many of them)
 
 rotation_interval = None
+rotation_when = rotation_period
 
-if rotation_period == 'MIDNIGHT':
-    rotation_when = 'midnight'
-elif rotation_period in ['W0','W1','W2','W3','W4','W5','W6']:
+rpsearch = re.search('([\d]+)([DHMS])',rotation_period)
+
+if rpsearch:
+    rotation_when = rpsearch.group(2).upper()
+    rotation_interval = int(rpsearch.group(1))
+
+else:
     rotation_when = rotation_period
-else:
-    # dealing with D/H/M/S
-    rpsearch = re.search('([\d]+)([DdHhMmWw])',rotation_period)
+    if not rotation_period in ['W0','W1','W2','W3','W4','W5','W6']:
+        # default - eithher midnight or some unrecognized period - rotate at midnight
+        rotation_when = 'MIDNIGHT'
 
-    if rpsearch:
-        rotation_when = rpsearch.group(2).upper()
-        rotation_interval = int(rpsearch.group(1))
-
-        # When to rotate first? Ideally we want to rotate on the next occurrence of a period
-        # In SQL that would be STEP(current_time + <interval> BY <interval>)
-
-        # timenow = datetime.now()
-
-        # seconddelta = -timenow.second
-        # microdelta = -timenow.microsecond
-
-        # if rotation_when == 'D':
-        #     # Rotate at next midnight
-        #     daydelta = +1
-        #     hourdelta = -timenow.hour
-        #     minutedelta = -timenow.minute
-        #     rotation_at = timenow + timedelta(days=daydelta,hours=hourdelta,minutes=minutedelta, seconds=seconddelta, microseconds=microdelta)
-
-        # elif rotation_when == 'H':
-        #     # Rotate at the next N hour boundary.
-        #     hourdelta = rotation_interval - (timenow.hour % rotation_interval)
-        #     minutedelta = -timenow.minute
-        #     rotation_at = timenow + timedelta(hours=hourdelta,minutes=minutedelta, seconds=seconddelta, microseconds=microdelta)
-        # elif rotation_when == 'M':
-        #     # Rotate at the next N minute boundary
-        #     minutedelta = rotation_interval - (timenow.minute % rotation_interval)
-        #     rotation_at = timenow + timedelta(minutes=minutedelta, seconds=seconddelta, microseconds=microdelta)
-        # elif rotation_when == 'S':
-        #     # Rotate at the next N second boundary
-        #     seconddelta = rotation_interval - (timenow.second % rotation_interval)
-        #     rotation_at = timenow + timedelta(seconds=seconddelta, microseconds=microdelta)
-    
-        # rotation_at_time = rotation_at.time()
-    else:
-        # default - some unrecognized period - rotate at midnight
-        rotation_when = 'midnight'
-
-
-
-# if rotation_at_time:
-#     log_handler = logging.handlers.TimedRotatingFileHandler(filename,when=rotation_when,interval=rotation_interval,atTime=rotation_at_time,backupCount=backup_count)
 if rotation_interval:
-    log_handler = logging.handlers.TimedRotatingFileHandler(filename,when=rotation_when,interval=rotation_interval,backupCount=backup_count)
+    log_handler = WholeIntervalRotatingFileHandler(filename,when=rotation_when,interval=rotation_interval,backupCount=backup_count)
 else:
-    log_handler = logging.handlers.TimedRotatingFileHandler(filename,when=rotation_when,backupCount=backup_count)
+    log_handler = WholeIntervalRotatingFileHandler(filename,when=rotation_when,backupCount=backup_count)
 
 formatter = logging.Formatter('%(asctime)s,%(message)s')
 formatter.converter = time.gmtime  # if you want UTC time
@@ -96,9 +66,8 @@ logger.debug("backupCount:"+str(backup_count))
 logger.debug("rotation_when:"+rotation_when)
 if rotation_interval:
     logger.debug("rotation_interval:"+str(rotation_interval))
-# if rotation_at:
-#     logger.debug("rotation_at:"+str(rotation_at))
-#     logger.debug("rotation_at_time:"+str(rotation_at_time))
+
+logger.debug("next rollover at: "+str(datetime.utcfromtimestamp(log_handler.rolloverAt)))
 
 rows = 0
 
