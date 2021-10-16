@@ -3,6 +3,21 @@
 This repository includes some example Python UDXs for SQLstream.
 
 
+## pipein
+
+This streaming UDX runs a command and reads its STDOUT, passing the lines back in a single "LINE" column until the command terminates.
+
+This allows us to accomplish:
+* Reading from a source type that isn't directly supported.
+* Reading history at startup (read old files and then tail -F the latest file)
+* Reading directly from a unix pipe
+
+It would be quite easy to extend this to handle a command pipeline (each command pipes into the next command, and the final command pipes into the Python UDX).
+
+### Parameters
+* Cursor - this is ignored - no rows are fetched
+* Command - a command string which will be split (on spaces) and passed to subprocess.Popen
+
 ## readfile
 
 This streaming UDX reads lines from files in a specified directory, and then exits
