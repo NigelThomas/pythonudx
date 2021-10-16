@@ -14,6 +14,8 @@ This allows us to accomplish:
 
 It would be quite easy to extend this to handle a command pipeline (each command pipes into the next command, and the final command pipes into the Python UDX).
 
+And advantage of this approach is that pre-processing happens in a separate thread. So (for example) file decompression or decryption is happening in a separate thread from record parsing.
+
 ### Parameters
 * Cursor - this is ignored - no rows are fetched
 * Command - a command string which will be split (on spaces) and passed to subprocess.Popen
